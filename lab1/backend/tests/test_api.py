@@ -10,7 +10,8 @@ from app.main import create_app
 def _settings(**kw) -> Settings:
     base = dict(llm_base_url=None, llm_model="qwen3-1.7b",
                 llm_connect_timeout=2.0, llm_request_timeout=30.0,
-                rate_limit_rpm=5, data_dir="/tmp/test-greetings-data")
+                rate_limit_rpm=5, data_dir="/tmp/test-greetings-data",
+                tz="Europe/Moscow")
     base.update(kw)
     return Settings(**base)
 
@@ -21,12 +22,31 @@ def test_healthz(tmp_path):
 
 
 def test_greeting_fallback(tmp_path):
-    client = TestClient(create_app(_settings(data_dir=str(tmp_path))))
+    app = create_app(_settings(data_dir=str(tmp_path)),
+                     today_fn=lambda: datetime.date(2027, 7, 15))
+    client = TestClient(app)
     r = client.get("/api/greeting")
     assert r.status_code == 200
     body = r.json()
     assert body["source"] == "fallback" and body["holiday"] is None
-    assert body["greeting"] and body["date"]
+    assert body["greeting"] and body["date"] == "2027-07-15"
+
+
+def test_greeting_uses_settings_timezone(monkeypatch, tmp_path):
+    from app import dates
+
+    seen_timezones = []
+
+    def fake_today(tz):
+        seen_timezones.append(tz)
+        return datetime.date(2027, 7, 15)
+
+    monkeypatch.setattr(dates, "today", fake_today)
+    app = create_app(_settings(tz="Asia/Tomsk", data_dir=str(tmp_path)))
+    body = TestClient(app).get("/api/greeting").json()
+
+    assert seen_timezones == ["Asia/Tomsk"]
+    assert body["date"] == "2027-07-15"
 
 
 def test_greeting_on_holiday(tmp_path):

@@ -7,6 +7,10 @@ set -euo pipefail
 
 LLAMA_IMAGE="ghcr.io/ggml-org/llama.cpp:server"
 
+# образ бэкенда собираем локально: на чистой машине его неоткуда скачать
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+docker build -t greetings-backend "$SCRIPT_DIR/backend"
+
 # общая сеть для бэкенда и модели
 docker network create greetings-net >/dev/null 2>&1 || true
 docker volume create greetings-model-cache >/dev/null

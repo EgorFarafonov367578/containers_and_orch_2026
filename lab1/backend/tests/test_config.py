@@ -4,7 +4,7 @@ from app.config import load_settings
 
 def test_defaults(monkeypatch):
     for var in ("LLM_BASE_URL", "LLM_MODEL", "LLM_CONNECT_TIMEOUT",
-                "LLM_REQUEST_TIMEOUT", "RATE_LIMIT_RPM", "DATA_DIR"):
+                "LLM_REQUEST_TIMEOUT", "RATE_LIMIT_RPM", "DATA_DIR", "APP_TZ"):
         monkeypatch.delenv(var, raising=False)
     s = load_settings()
     assert s.llm_base_url is None
@@ -13,6 +13,7 @@ def test_defaults(monkeypatch):
     assert s.llm_request_timeout == 30.0
     assert s.rate_limit_rpm == 5
     assert s.data_dir == "/data"
+    assert s.tz == "Europe/Moscow"
 
 
 def test_env_override(monkeypatch):

@@ -1,5 +1,12 @@
 import datetime
-from app.dates import build_prompt, describe_date
+from app.dates import build_prompt, describe_date, today
+
+
+def test_today_uses_requested_timezone():
+    # 2026-12-31 21:30 UTC — это уже 2027-01-01 в Москве.
+    moment = datetime.datetime(2026, 12, 31, 21, 30,
+                               tzinfo=datetime.timezone.utc)
+    assert today("Europe/Moscow", moment) == datetime.date(2027, 1, 1)
 
 
 def test_new_year():

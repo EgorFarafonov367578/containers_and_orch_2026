@@ -1,5 +1,6 @@
 """Поводы и фразы по дате: праздники, сезонные строки, промпт для LLM."""
 import datetime
+from zoneinfo import ZoneInfo
 
 # (месяц, день) -> (название повода, форма для фразы «С ...» — творительный падеж)
 HOLIDAYS: dict[tuple[int, int], tuple[str, str]] = {
@@ -25,8 +26,11 @@ SEASONS: dict[int, str] = {
 }
 
 
-def today() -> datetime.date:
-    return datetime.date.today()
+def today(tz: str, now: datetime.datetime | None = None) -> datetime.date:
+    """Возвращает календарную дату в заданном часовом поясе."""
+    if now is None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+    return now.astimezone(ZoneInfo(tz)).date()
 
 
 def describe_date(d: datetime.date) -> tuple[str | None, str]:

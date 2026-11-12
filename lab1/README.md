@@ -23,6 +23,13 @@ lab1/
 
 ## Как запустить
 
+Для демонстрации утечки в плохом образе создайте учебный `.env` с явно
+фиктивным токеном:
+
+```bash
+echo 'HF_TOKEN=hf_demo_FAKE_token_for_leak_demo' > lab1/backend/.env
+```
+
 Хороший образ (с volume):
 
 ```bash

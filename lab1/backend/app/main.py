@@ -17,7 +17,7 @@ def create_app(settings: Settings | None = None,
                today_fn: Callable[[], datetime.date] | None = None) -> FastAPI:
     settings = settings or load_settings()
     limiter = SlidingWindowRateLimiter(settings.rate_limit_rpm)
-    get_today = today_fn or dates.today
+    get_today = today_fn or (lambda: dates.today(settings.tz))
     app = FastAPI(title="Поздравлялка")
 
     @app.get("/healthz")

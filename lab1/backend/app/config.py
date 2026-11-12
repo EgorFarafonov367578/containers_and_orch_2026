@@ -11,6 +11,7 @@ class Settings:
     llm_request_timeout: float
     rate_limit_rpm: int
     data_dir: str
+    tz: str
 
 
 def _env(name: str, default: str) -> str:
@@ -28,4 +29,5 @@ def load_settings() -> Settings:
         llm_request_timeout=float(_env("LLM_REQUEST_TIMEOUT", "30.0")),
         rate_limit_rpm=int(_env("RATE_LIMIT_RPM", "5")),
         data_dir=_env("DATA_DIR", "/data"),
+        tz=_env("APP_TZ", "Europe/Moscow"),
     )

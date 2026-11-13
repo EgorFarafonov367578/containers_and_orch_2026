@@ -1,0 +1,9 @@
+FROM python:latest
+ENV HF_TOKEN=hf_demo_FAKE_token_for_leak_demo
+RUN apt-get update
+RUN apt-get -y install vim nano curl
+WORKDIR app
+COPY . .
+RUN pip install fastapi uvicorn httpx
+EXPOSE 8000
+ENTRYPOINT uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

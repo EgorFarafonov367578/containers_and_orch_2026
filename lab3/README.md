@@ -178,8 +178,8 @@ Initializing finished
 
 ```
 $ kubectl describe pod -l app=nextcloud
-    Liveness:   http-get http://:http/status.php delay=120s timeout=1s period=30s successThreshold=1 failureThreshold=5
-    Readiness:  http-get http://:http/status.php delay=30s timeout=1s period=10s successThreshold=1 failureThreshold=3
+    Liveness:   http-get http://:http/status.php delay=120s timeout=5s period=30s successThreshold=1 failureThreshold=5
+    Readiness:  http-get http://:http/status.php delay=30s timeout=5s period=10s successThreshold=1 failureThreshold=3
     Environment Variables from:
       nextcloud-configmap  ConfigMap  Optional: false
       postgres-secret      Secret     Optional: false
@@ -332,9 +332,12 @@ postgres-secret` — один источник правды на оба конт
   секунд, без пробы Service сразу отправил бы пользователей на не поднятое
   приложение. Работу видно и «в минусе»: в эксперименте scale 0→1 именно
   readiness первым сообщил о сломанной БД.
-- `livenessProbe` (initialDelay 120 s, period 30 s, failureThreshold 5) —
-  если контейнер завис, кубер перезапустит его; пороги мягкие, чтобы не
-  убивать под при медленной установке.
+- `livenessProbe` (initialDelay 120 s, period 30 s, timeout 5 s,
+  failureThreshold 5) — если контейнер завис, кубер перезапустит его; пороги
+  мягкие, чтобы не убивать под при медленной установке. Дефолтный
+  `timeoutSeconds: 1` оказался опасен: одно медленное мгновение PHP — и
+  пять «неудач» подряд убивали контейнер, который без PVC потом не мог
+  переустановиться (см. «Отладка», п. 4).
 - Путь `/status.php` лёгкий и есть в официальном образе; порт указан по имени
   `http` — при смене порта контейнера проба не сломается. Значения порогов —
   как в официальном Helm-чарте Nextcloud.

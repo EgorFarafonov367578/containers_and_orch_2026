@@ -36,6 +36,11 @@ lab3/
   nextcloud_configmap.yml      # NEW: плоские переменные nextcloud
   nextcloud_secret.yml         # NEXTCLOUD_ADMIN_PASSWORD
   nextcloud_deployment.yml     # envFrom + liveness/readiness пробы
+  lab1-app/                    # бонус: приложение из ЛР 1 в этом же кластере
+    greetings_configmap.yml    #   env-контракт бэкенда (LLM_MODEL, RATE_LIMIT_RPM, ...)
+    greetings_pvc.yml          #   PVC 100Mi под /data (история поздравлений)
+    greetings_service.yml      #   NodePort 8000
+    greetings_deployment.yml   #   образ из lab1 + пробы /healthz + volume
   screenshots/                 # скриншоты UI (логин, файлы, dashboard)
   README.md                    # этот отчёт
 ```
@@ -384,6 +389,50 @@ postgres-secret` — один источник правды на оба конт
 потому, что в старом контейнере ноды остались данные от прошлых прогонов
 (таблицы чужого владельца) — состояние пода не всегда «столько, сколько
 живёт под», если нода пережила несколько прогонов.
+
+## Связка с ЛР 1: своё приложение в том же кластере
+
+Обязательная часть — дефолтный Nextcloud из методички. Дополнительно в тот же
+кластер развернули **наш бэкенд из ЛР 1** («поздравлялка» на FastAPI) — но
+сразу по практикам, которых не было в примере задания:
+
+- **Свой образ**: `docker build -t greetings-backend:lab3 lab1/backend`
+  (тот самый «хороший» multi-stage Dockerfile из ЛР 1, non-root) →
+  `minikube image load greetings-backend:lab3` — образ попадает в ноду без
+  registry.
+- **ConfigMap вместо env в деплойменте** (`lab1-app/greetings_configmap.yml`):
+  у приложения из ЛР 1 честный env-контракт (`LLM_MODEL`, `RATE_LIMIT_RPM`,
+  `APP_TZ`, ...), он целиком ложится в ConfigMap. `LLM_BASE_URL` не задаём —
+  llama.cpp в кластере нет, приложение корректно уходит в fallback-режим:
+  ```
+  $ curl http://127.0.0.1:55627/api/greeting
+  {"date":"2026-11-24","holiday":null,"greeting":"Тёплого осеннего дня!","source":"fallback"}
+  ```
+- **Пробы** по `/healthz` (readiness 5s/10s, liveness 30s/30s, timeout 5s) —
+  тот же endpoint, что использовал HEALTHCHECK образа из ЛР 1.
+- **PVC под `/data`** (`greetings_pvc.yml`, 100Mi, class `standard` от
+  minikube): история поздравлений `history.jsonl` переживает пересоздание
+  пода. Проверено живьём — удаляем под, ждём новый:
+
+  ```
+  $ kubectl delete pod -l app=greetings
+  $ kubectl wait --for=condition=Ready pod -l app=greetings --timeout=180s
+  $ kubectl exec deploy/greetings -- ls -la /data
+  -rw-r--r-- 1 app app 179 Nov 24 07:36 history.jsonl   # записан СТАРЫМ подом
+  ```
+
+  Это прямой контраст с экспериментом scale postgres 0→1: там без PVC база
+  умирала вместе с подом, здесь данные выжили. PVC — то, что стоило сделать
+  и для postgres (StatefulSet + persistent volume claim).
+
+Итоговое состояние кластера — три приложения рядом:
+
+```
+NAME                             READY   STATUS    RESTARTS   AGE
+pod/greetings-65f55bd7db-dphnf   1/1     Running   0          1m
+pod/nextcloud-5984d49f9-mr7rq    1/1     Running   0          54m
+pod/postgres-75b8c699bf-hqzt6    1/1     Running   0          54m
+```
 
 ## Ответы на вопросы
 

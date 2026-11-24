@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: greetings-configmap
+  labels:
+    app: greetings
+data:
+  # LLM_BASE_URL не задаём: без llama.cpp в кластере приложение
+  # честно уходит в fallback-режим (шаблонные поздравления)
+  LLM_MODEL: "qwen3-1.7b"
+  LLM_CONNECT_TIMEOUT: "2.0"
+  LLM_REQUEST_TIMEOUT: "30.0"
+  RATE_LIMIT_RPM: "5"
+  DATA_DIR: "/data"
+  APP_TZ: "Europe/Moscow"

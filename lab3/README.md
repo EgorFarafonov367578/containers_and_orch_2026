@@ -254,8 +254,13 @@ $ curl -s http://127.0.0.1:65506/status.php
  "productname":"Nextcloud","extendedSupport":false}
 ```
 
-Вход в UI: логин `ncadmin`, пароль из `nextcloud_secret.yml` — скриншоты в
-`screenshots/`.
+Вход в UI: логин `ncadmin`, пароль из `nextcloud_secret.yml`:
+
+![Nextcloud: страница входа](screenshots/01-login.png)
+
+После входа — рабочий стол (версия 34.0.6):
+
+![Nextcloud: интерфейс после входа](screenshots/02-nextcloud-ui.png)
 
 ### 6. Dashboard
 
@@ -408,6 +413,10 @@ postgres-secret` — один источник правды на оба конт
   $ curl http://127.0.0.1:55627/api/greeting
   {"date":"2026-11-24","holiday":null,"greeting":"Тёплого осеннего дня!","source":"fallback"}
   ```
+
+  Swagger UI приложения изнутри кластера:
+
+  ![greetings: Swagger UI](screenshots/04-greetings-app.png)
 - **Пробы** по `/healthz` (readiness 5s/10s, liveness 30s/30s, timeout 5s) —
   тот же endpoint, что использовал HEALTHCHECK образа из ЛР 1.
 - **PVC под `/data`** (`greetings_pvc.yml`, 100Mi, class `standard` от

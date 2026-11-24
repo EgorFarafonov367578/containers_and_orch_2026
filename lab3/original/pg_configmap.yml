@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-configmap
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: "nextcloud"
+  POSTGRES_USER: "nc_dbuser"
+  POSTGRES_PASSWORD: "PgLab3-2026"

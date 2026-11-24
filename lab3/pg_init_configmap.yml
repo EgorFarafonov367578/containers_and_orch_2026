@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-initdb
+  labels:
+    app: postgres
+data:
+  01-app-user-nosuperuser.sql: |
+    -- Nextcloud's installer enables "db user separation" (hardcoded oc_admin
+    -- user with a retry counter) when the connecting role has CREATEROLE/
+    -- SUPERUSER, and that path is broken with postgres:14 (permission denied
+    -- for table oc_migrations). The app does not need a superuser: strip the
+    -- privileges so the installer uses POSTGRES_USER as-is.
+    ALTER ROLE "nc_dbuser" NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;

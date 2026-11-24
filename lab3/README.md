@@ -267,8 +267,13 @@ $ curl -s http://127.0.0.1:65506/status.php
 
 ```bash
 minikube dashboard --url
-# http://127.0.0.1:49678
+# http://127.0.0.1:49678/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/
 ```
+
+Workloads: все три деплоймента зелёные (greetings, nextcloud, postgres —
+Running 3/3):
+
+![minikube dashboard: workloads](screenshots/03-k8s-dashboard.png)
 
 ### 7. Эксперимент: scale postgres 0 → 1
 

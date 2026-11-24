@@ -35,7 +35,8 @@ lab3/
   pg_init_configmap.yml        # NEW: init-SQL для postgres (см. «Отладка»)
   nextcloud_configmap.yml      # NEW: плоские переменные nextcloud
   nextcloud_secret.yml         # NEXTCLOUD_ADMIN_PASSWORD
-  nextcloud_deployment.yml     # envFrom + liveness/readiness пробы
+  nextcloud_pvc.yml            # NEW: PVC 5Gi под /var/www/html (переживает рестарты)
+  nextcloud_deployment.yml     # envFrom + liveness/readiness пробы + volume
   lab1-app/                    # бонус: приложение из ЛР 1 в этом же кластере
     greetings_configmap.yml    #   env-контракт бэкенда (LLM_MODEL, RATE_LIMIT_RPM, ...)
     greetings_pvc.yml          #   PVC 100Mi под /data (история поздравлений)
@@ -389,6 +390,23 @@ postgres-secret` — один источник правды на оба конт
    повторный запуск говорит «The Login is already being used». Поэтому после
    экспериментов с подами цикл всегда один и тот же: погасить nextcloud →
    пересоздать под postgres (чистый initdb) → запустить nextcloud.
+5. Третий, самый поучительный слой: **рестарт контейнера = потеря
+   writable-слоя** (в отличие от рестарта пода с volume). Стоило liveness
+   один раз убить контейнер (медленный момент на 2-CPU кластере), как
+   nextcloud терял config.php, пытался переустановиться и попадал в
+   CrashLoopBackOff «Login already used». Лечение — то же, что и для
+   эксперимента scale 0→1: **PVC** (`nextcloud_pvc.yml`, 5Gi на
+   `/var/www/html`; официальный образ рассчитан на такую схему — при пустом
+   томе он раскладывает код, при установленном — просто стартует). Проверка:
+   удаляем под — новый под Ready за 31 c, в логах **0** попыток установки:
+
+   ```
+   $ kubectl delete pod -l app=nextcloud
+   $ kubectl wait --for=condition=Ready pod -l app=nextcloud --timeout=300s
+   $ kubectl logs -l app=nextcloud | grep -c "Starting nextcloud installation"
+   0
+   ```
+
 
 Попутная находка: `minikube delete` + свежий кластер понадобился ещё и
 потому, что в старом контейнере ноды остались данные от прошлых прогонов

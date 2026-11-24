@@ -61,5 +61,12 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 5
           imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: html
+              mountPath: /var/www/html
       restartPolicy: Always
       dnsPolicy: ClusterFirst
+      volumes:
+        - name: html
+          persistentVolumeClaim:
+            claimName: nextcloud-html

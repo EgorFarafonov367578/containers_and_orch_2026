@@ -158,8 +158,9 @@ Warning  Failed   7s (x2 over 8s)  kubelet  Error: configmap "nextcloud-configma
 Создаём остальные объекты — и тот же под оживает без пересоздания:
 
 ```bash
-kubectl create -f pg_configmap.yml -f pg_secret.yml -f pg_service.yml \
-  -f pg_deployment.yml -f nextcloud_configmap.yml -f nextcloud_secret.yml
+kubectl create -f pg_configmap.yml -f pg_secret.yml -f pg_init_configmap.yml \
+  -f pg_service.yml -f pg_deployment.yml -f nextcloud_configmap.yml \
+  -f nextcloud_secret.yml -f nextcloud_pvc.yml
 ```
 
 ```
@@ -465,6 +466,21 @@ pod/greetings-65f55bd7db-dphnf   1/1     Running   0          1m
 pod/nextcloud-5984d49f9-mr7rq    1/1     Running   0          54m
 pod/postgres-75b8c699bf-hqzt6    1/1     Running   0          54m
 ```
+
+### Развернуть всё одной командой
+
+Ниже — полный набор доработанных манифестов одной командой (порядок внутри
+не важен, см. вопрос 1; postgres успевает инициализироваться, пока
+nextcloud тянет образ):
+
+```bash
+kubectl create -f pg_configmap.yml -f pg_secret.yml -f pg_init_configmap.yml \
+  -f pg_service.yml -f pg_deployment.yml -f nextcloud_configmap.yml \
+  -f nextcloud_secret.yml -f nextcloud_pvc.yml -f nextcloud_deployment.yml
+```
+
+Сверено на чистом кластере (свежий minikube-профиль, пустые образы): оба
+пода `1/1 Running` за ~2 минуты, установка завершается без ошибок.
 
 ## Ответы на вопросы
 

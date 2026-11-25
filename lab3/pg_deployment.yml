@@ -14,7 +14,7 @@ spec:
     spec:
       # ИБ: приложение не ходит в kube-api — токен SA не нужен вовсе
       automountServiceAccountToken: false
-      # ИБ: не раздавать всем подам env-переменные о сервисах ( reconnaissance)
+      # ИБ: не раздавать всем подам env-переменные о сервисах (разведка)
       enableServiceLinks: false
       securityContext:
         seccompProfile:

@@ -4,8 +4,10 @@ metadata:
   name: postgres-service
   labels:
     app: postgres
+  annotations:
+    description: "ИБ-аудит: ClusterIP вместо NodePort — БД не должна торчать на порт ноды"
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: 5432
   selector:

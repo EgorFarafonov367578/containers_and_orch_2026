@@ -12,9 +12,17 @@ spec:
       labels:
         app: postgres
     spec:
+      # ИБ: приложение не ходит в kube-api — токен SA не нужен вовсе
+      automountServiceAccountToken: false
+      # ИБ: не раздавать всем подам env-переменные о сервисах ( reconnaissance)
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: postgres-container
-          image: postgres:14
+          # минимализм: alpine-вариант того же официального образа (~80MB меньше)
+          image: postgres:14-alpine
           resources:
             limits:
               cpu: 200m
@@ -23,6 +31,10 @@ spec:
               cpu: 100m
               memory: 128Mi
           imagePullPolicy: "IfNotPresent"
+          securityContext:
+            # официальный entrypoint сам su-exec'ается вниз до пользователя postgres,
+            # но подниматься выше текущих привилегий контейнеру незачем
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 5432
           envFrom:
@@ -33,7 +45,12 @@ spec:
           volumeMounts:
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
+            - name: data
+              mountPath: /var/lib/postgresql/data
       volumes:
         - name: initdb
           configMap:
             name: postgres-initdb
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data

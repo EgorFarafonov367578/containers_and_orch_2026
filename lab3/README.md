@@ -16,8 +16,8 @@ YAML-манифестов, а затем доработать пример из 
 свежий `nextcloud:stable-apache` (34.0.6) с `postgres:14` в k8s не
 разворачивается — подробности в разделе «Отладка».
 
-Окружение: macOS (arm64), Docker Desktop, minikube v1.39.0 (драйвер docker),
-kubectl v1.37.2, Kubernetes v1.37.0.
+Окружение: macOS (arm64), Docker Desktop, minikube v1.39.0 (драйвер docker,
+CNI calico — для исполнения NetworkPolicy), kubectl v1.37.2, Kubernetes v1.37.0.
 
 ## Что где лежит
 
@@ -37,6 +37,8 @@ lab3/
   nextcloud_secret.yml         # NEXTCLOUD_ADMIN_PASSWORD
   nextcloud_pvc.yml            # NEW: PVC 5Gi под /var/www/html (переживает рестарты)
   nextcloud_deployment.yml     # envFrom + liveness/readiness пробы + volume
+  pg_pvc.yml                   # NEW: PVC 2Gi под данные postgres (переживает рестарты)
+  networkpolicy.yml            # NEW: default-deny + точечные разрешения (нужен calico)
   lab1-app/                    # бонус: приложение из ЛР 1 в этом же кластере
     greetings_configmap.yml    #   env-контракт бэкенда (LLM_MODEL, RATE_LIMIT_RPM, ...)
     greetings_pvc.yml          #   PVC 100Mi под /data (история поздравлений)
@@ -471,16 +473,57 @@ pod/postgres-75b8c699bf-hqzt6    1/1     Running   0          54m
 
 Ниже — полный набор доработанных манифестов одной командой (порядок внутри
 не важен, см. вопрос 1; postgres успевает инициализироваться, пока
-nextcloud тянет образ):
+nextcloud тянет образ). Кластер должен быть запущен с calico, иначе
+NetworkPolicy не исполняются:
 
 ```bash
+minikube start --driver=docker --cpus=2 --memory=4096 --cni=calico
+
 kubectl create -f pg_configmap.yml -f pg_secret.yml -f pg_init_configmap.yml \
-  -f pg_service.yml -f pg_deployment.yml -f nextcloud_configmap.yml \
-  -f nextcloud_secret.yml -f nextcloud_pvc.yml -f nextcloud_deployment.yml
+  -f pg_pvc.yml -f pg_service.yml -f pg_deployment.yml -f nextcloud_configmap.yml \
+  -f nextcloud_secret.yml -f nextcloud_pvc.yml -f nextcloud_deployment.yml \
+  -f networkpolicy.yml
 ```
 
-Сверено на чистом кластере (свежий minikube-профиль, пустые образы): оба
-пода `1/1 Running` за ~2 минуты, установка завершается без ошибок.
+Сверено на чистом кластере (свежий minikube-профиль, пустые образы): все
+поды `1/1 Running` за ~2 минуты, установка завершается без ошибок.
+
+## ИБ-аудит и hardening
+
+Аудит архитектуры на требование «взлом одного сервиса не даёт доступ ко
+всем» дал смешанную картину — и был закрыт хардженингом:
+
+**Что показал аудит**
+
+- **Секреты postgres в config.php nextcloud лежат открыто**
+  (`dbuser`/`dbpassword`) — так устроен сам Nextcloud, убрать невозможно.
+  Компенсация: пароль принадлежит минимально-привилегированной роли.
+- **Изоляция секретов по подам** — выдержана: greetings не получает ни
+  одного секрета, postgres-secret есть только у postgres и nextcloud.
+- **Сетевая плоскость была открыта**: любой под мог стучаться к
+  `postgres:5432`, а сервис БД висел на NodePort ноды.
+- **Поды работали от root** без ограничений, с примонтированным
+  SA-токеном и сервис-переменными в env.
+
+**Применённые меры** (все проверки ниже — живые, из кластера)
+
+| Мера | Проверка | Результат |
+|---|---|---|
+| `pg_service` → **ClusterIP** (был NodePort) | `kubectl get svc` | БД больше не торчит на порт ноды |
+| **NetworkPolicy**: default-deny + только nextcloud→postgres:5432 | из пода greetings: TCP на `postgres-service:5432` | `TimeoutError` — заблокировано |
+| тот же policy, разрешённый путь | `status.php` nextcloud | 200 — приложение работает |
+| **Демоушн БД-роли + передача системных БД** (`pg_init_configmap.yml`): nc_dbuser не суперюзер и не владелец maintenance-БД | `has_database_privilege('nc_dbuser','postgres','CREATE')` | `f` |
+| **REVOKE CREATE ON SCHEMA public FROM PUBLIC** (PG14-дефолт опасен, PG15 делает сам) | то же + схема | `f` |
+| **SA-токен не монтируется**, сервис-линки выключены | `ls /var/run/secrets/.../serviceaccount` | «нет токена» во всех подах |
+| **greetings: runAsNonRoot + drop ALL + readOnlyRootFilesystem** | `id` / `CapEff` / `touch /` | uid 10001, caps 0, `Read-only file system` |
+| **postgres:14-alpine** вместо полного образа | — | тот же функционал, образ заметно меньше |
+| **PVC для postgres** (2Gi) | перезапуск контейнера | данные переживают рестарты (раньше — см. вопрос 2) |
+
+Осталось осознанно принять: nextcloud/postgres стартуют от root внутри
+контейнера (входят в образ: apache биндит 80, entrypoint postgres'а
+su-exec'ается вниз) — смягчено `allowPrivilegeEscalation: false` и
+seccomp `RuntimeDefault`; и секреты в git открыты — учебный компромисс
+(в проде — Sealed Secrets/SOPS/External Secrets).
 
 ## Ответы на вопросы
 

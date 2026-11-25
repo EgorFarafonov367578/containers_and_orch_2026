@@ -14,6 +14,12 @@ spec:
       labels:
         app: nextcloud
     spec:
+      # ИБ: приложению не нужен токен ServiceAccount и разведка сервисов через env
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: nextcloud
           image: docker.io/nextcloud:stable-apache
@@ -61,6 +67,10 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 5
           imagePullPolicy: IfNotPresent
+          securityContext:
+            # образ стартует apache от root и сам роняет воркеры до www-data
+            # (runAsNonRoot сломал бы бинд порта 80) — но расти выше незачем
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: html
               mountPath: /var/www/html

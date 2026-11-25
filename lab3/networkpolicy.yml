@@ -1,0 +1,123 @@
+# ИБ-аудит: сетевая сегментация. Без этих политик namespace — одна плоская
+# сеть: любой взломанный под может стучаться к postgres. Требуемый CNI —
+# поддерживающий NetworkPolicy (в minikube: `minikube addons enable calico`).
+#
+# Модель: default deny всё; далее точечные разрешения.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# postgres принимает ТОЛЬКО 5432 и ТОЛЬКО от nextcloud
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-from-nextcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nextcloud
+      ports:
+        - protocol: TCP
+          port: 5432
+  egress:
+    # DNS для резолвинга имён (иначе ломается даже подключение по имени сервиса)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# nextcloud: входящий 80 (внешний трафик NodePort + kubelet-проба),
+# исходящий — только DNS и postgres:5432
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nextcloud-net
+spec:
+  podSelector:
+    matchLabels:
+      app: nextcloud
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 80
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# greetings: входящий 8000 отовсюду, исходящий — только DNS (LLM не настроен)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: greetings-net
+spec:
+  podSelector:
+    matchLabels:
+      app: greetings
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

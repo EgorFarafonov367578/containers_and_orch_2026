@@ -5,10 +5,27 @@ metadata:
   labels:
     app: postgres
 data:
-  01-app-user-nosuperuser.sql: |
-    -- Nextcloud's installer enables "db user separation" (hardcoded oc_admin
-    -- user with a retry counter) when the connecting role has CREATEROLE/
-    -- SUPERUSER, and that path is broken with postgres:14 (permission denied
-    -- for table oc_migrations). The app does not need a superuser: strip the
-    -- privileges so the installer uses POSTGRES_USER as-is.
+  # Выполняется один раз при первичном initdb (пустой том) в порядке перечисления.
+  01-db-hardening.sql: |
+    -- ИБ-хардженинг кластера postgres. Всё выполняется, пока nc_dbuser ещё
+    -- суперпользователь (initdb делает POSTGRES_USER бутстрап-суперюзером).
+
+    -- 1. Отдельная роль-владелец системных баз (без логина): иначе nc_dbuser
+    --    навсегда остаётся владельцем maintenance-БД postgres/template1.
+    CREATE ROLE db_owner NOLOGIN;
+    ALTER DATABASE postgres OWNER TO db_owner;
+    ALTER DATABASE template1 OWNER TO db_owner;
+
+    -- 2. Nextcloud-установщик включает "db user separation" (захардкоженный
+    --    oc_admin + счётчик повторов), если роль имеет CREATEROLE/SUPERUSER,
+    --    и этот путь сломан на postgres:14 (permission denied oc_migrations).
+    --    Приложению суперправа не нужны — демоушн:
     ALTER ROLE "nc_dbuser" NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+
+    -- 3. PG14 даёт PUBLIC право CREATE в схеме public любой базы, куда роль
+    --    может подключиться. Отзываем в maintenance-БД и в собственной
+    --    (владельцу nextcloud права сохраняются через ownership).
+    \c postgres
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+    \c nextcloud
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;

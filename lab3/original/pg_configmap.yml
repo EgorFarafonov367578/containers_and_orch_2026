@@ -1,3 +1,6 @@
+# Манифест из методички «как было»: DB + USER + PASSWORD лежат в ConfigMap.
+# В доработанной версии креды вынесены в Secret (../pg_secret.yml),
+# здесь остаётся только POSTGRES_DB (../pg_configmap.yml).
 apiVersion: v1
 kind: ConfigMap
 metadata:

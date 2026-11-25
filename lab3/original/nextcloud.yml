@@ -1,3 +1,8 @@
+# Манифест из методички «как было» (учебная копия для хода работы):
+# креды postgres берутся из ConfigMap, проб нет. Доработанная версия —
+# ../nextcloud_deployment.yml + ../nextcloud_configmap.yml + ../nextcloud_secret.yml.
+# Значения юзера/пароля заменены на свои (требование методички), структура
+# не менялась.
 apiVersion: v1
 kind: Secret
 metadata:

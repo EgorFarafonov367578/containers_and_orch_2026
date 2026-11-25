@@ -1,3 +1,5 @@
+# Манифест из методички «как было»: env только из ConfigMap с кредами.
+# Доработанная версия — ../pg_deployment.yml (envFrom cm + secret, init-SQL, PVC).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
